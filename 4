@@ -1,0 +1,38 @@
+SELECT
+    a.ID AS account_id,  -- Выбираем ID счета и переименовываем его в account_id
+    a.NAME AS account_name, -- Выбираем наименование счета и переименовываем его в account_name
+    a.ACC_NUM, -- Выбираем номер счета
+    a.SALDO, -- Выбираем остаток по счету
+    (SELECT NAME FROM CLIENTS WHERE ID = a.CLIENT_REF) AS client_name -- Выбираем имя клиента, связанного с этим счетом, используя подзапрос.
+FROM
+    ACCOUNTS a  -- Из таблицы ACCOUNTS, с псевдонимом 'a'
+WHERE
+    a.PRODUCT_REF IN (
+        SELECT
+            p.ID -- Выбираем ID продукта из таблицы PRODUCTS
+        FROM
+            PRODUCTS p  -- Из таблицы PRODUCTS, с псевдонимом 'p'
+        WHERE
+            p.PRODUCT_TYPE_ID IN (
+                SELECT
+                    pt.ID -- Выбираем ID типа продукта из таблицы PRODUCT_TYPE
+                FROM
+                    PRODUCT_TYPE pt  -- Из таблицы PRODUCT_TYPE, с псевдонимом 'pt'
+                WHERE
+                    pt.NAME = 'ДЕПОЗИТ' -- Фильтруем по имени типа продукта
+            )
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM PRODUCTS p2  -- Из таблицы PRODUCTS, с псевдонимом 'p2'
+        WHERE
+            p2.CLIENT_REF = a.CLIENT_REF -- Фильтр по клиенту.  Сравнивает клиент_id счета 'a' с клиент_id продуктов в подзапросе
+            AND p2.PRODUCT_TYPE_ID IN (
+                SELECT
+                    pt2.ID -- Выбираем ID типа продукта из таблицы PRODUCT_TYPE
+                FROM
+                    PRODUCT_TYPE pt2  -- Из таблицы PRODUCT_TYPE, с псевдонимом 'pt2'
+                WHERE
+                    pt2.NAME = 'КРЕДИТ' -- Фильтруем по имени типа продукта
+            )
+    );
