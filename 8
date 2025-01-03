@@ -1,0 +1,62 @@
+WITH ClientCreditProducts AS (
+    SELECT
+        c.ID AS client_id,
+        c.NAME AS client_name,
+        p.ID AS product_id,
+        p.NAME AS product_name
+    FROM
+        CLIENTS c
+    JOIN
+        PRODUCTS p ON c.ID = p.CLIENT_REF
+    WHERE
+        p.PRODUCT_TYPE_ID = (SELECT ID FROM PRODUCT_TYPE WHERE NAME = 'КРЕДИТ')  -- Определяем, что это кредитный продукт
+),
+ClientCreditAccountBalances AS (
+    SELECT
+        ccp.client_id,
+        ccp.client_name,
+        ccp.product_id,
+        ccp.product_name,
+        SUM(r.SUM) AS total_credit_movement
+    FROM
+        ClientCreditProducts ccp
+    JOIN
+        ACCOUNTS a ON ccp.product_id = a.PRODUCT_REF
+    JOIN
+        RECORDS r ON a.ID = r.ACC_REF
+    GROUP BY
+        ccp.client_id, ccp.client_name, ccp.product_id, ccp.product_name
+),
+FullyPaidClients AS (
+    SELECT
+        client_id,
+        client_name,
+        product_id,
+        product_name,
+        total_credit_movement
+    FROM
+        ClientCreditAccountBalances
+    WHERE
+	total_credit_movement = 0  -- Найдем клиентов, полностью погасивших кредит
+)
+SELECT
+    fpc.client_id,
+    fpc.client_name,
+    fpc.product_id,
+    fpc.product_name
+FROM
+    FullyPaidClients fpc
+JOIN
+    RECORDS r2 ON fpc.product_id = r2.ACC_REF
+WHERE
+    r2.OPER_DATE > (
+        SELECT
+            MAX(OPER_DATE)
+        FROM
+            RECORDS
+        WHERE
+            ACC_REF = fpc.product_id
+    )
+    AND r2.SUM > 0  -- Проверка на новую операцию выдачи кредита
+ORDER BY
+    fpc.client_id;
