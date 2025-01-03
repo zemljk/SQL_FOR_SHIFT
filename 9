@@ -1,0 +1,64 @@
+WITH CreditProducts AS (
+    SELECT
+        p.ID AS product_id,
+        a.ID AS account_id
+    FROM
+        PRODUCTS p
+    JOIN
+        ACCOUNTS a ON p.ID = a.PRODUCT_REF
+    WHERE
+        p.PRODUCT_TYPE_ID = (SELECT ID FROM PRODUCT_TYPE WHERE NAME = 'КРЕДИТ')
+),
+CreditAccountBalances AS (
+    SELECT
+        cp.product_id,
+        SUM(r.SUM) AS total_credit_movement
+    FROM
+        CreditProducts cp
+    JOIN
+        RECORDS r ON cp.account_id = r.ACC_REF
+    GROUP BY
+        cp.product_id
+),
+FullyPaidCredits AS (
+    SELECT
+        product_id
+    FROM
+        CreditAccountBalances
+    WHERE
+	total_credit_movement = 0
+),
+UpdatedProducts AS (
+  SELECT
+        ID
+    FROM
+         PRODUCTS
+    WHERE
+        ID IN (
+        SELECT
+            product_id
+        FROM
+            FullyPaidCredits
+       WHERE NOT EXISTS ( SELECT 1
+         FROM RECORDS r2
+        WHERE r2.ACC_REF = FullyPaidCredits.product_id
+           AND r2.OPER_DATE > (
+                SELECT
+                    MAX(OPER_DATE)
+                FROM
+                    RECORDS
+                WHERE
+                    ACC_REF = FullyPaidCredits.product_id
+            )
+          AND r2.SUM > 0
+       )
+       )
+),
+UpdatedResult as (
+   UPDATE PRODUCTS
+   SET CLOSE_DATE = CURRENT_DATE
+  WHERE
+   ID IN (SELECT ID FROM UpdatedProducts)
+   RETURNING ID, CLOSE_DATE
+)
+SELECT ID,CLOSE_DATE from UpdatedResult;
