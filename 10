@@ -1,0 +1,20 @@
+WITH ProductTypesToClose AS (
+    SELECT
+        pt.ID AS product_type_id,
+        pt.NAME AS product_type_name
+    FROM
+        PRODUCT_TYPE pt
+    WHERE NOT EXISTS (
+       SELECT 1
+        FROM PRODUCTS p
+        JOIN ACCOUNTS a ON p.ID = a.PRODUCT_REF
+        JOIN RECORDS r ON a.ID = r.ACC_REF
+        WHERE
+            p.PRODUCT_TYPE_ID = pt.ID
+            AND r.OPER_DATE >= CURRENT_DATE - INTERVAL '1 month'
+    )
+)
+UPDATE PRODUCT_TYPE
+SET END_DATE = CURRENT_DATE
+WHERE
+    ID IN (SELECT product_type_id FROM ProductTypesToClose);
