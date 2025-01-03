@@ -1,0 +1,19 @@
+SELECT
+    c.ID AS client_id,
+    c.NAME AS client_name,
+    r.OPER_DATE AS operation_date,
+    SUM(r.SUM) AS total_daily_movement
+FROM
+    CLIENTS c
+JOIN
+    PRODUCTS p ON c.ID = p.CLIENT_REF
+JOIN
+    ACCOUNTS a ON p.ID = a.PRODUCT_REF
+JOIN
+    RECORDS r ON a.ID = r.ACC_REF
+WHERE
+    r.OPER_DATE >= CURRENT_DATE - INTERVAL '1 month' AND r.OPER_DATE <= CURRENT_DATE
+GROUP BY
+    c.ID, c.NAME, r.OPER_DATE
+ORDER BY
+    c.ID, r.OPER_DATE;
