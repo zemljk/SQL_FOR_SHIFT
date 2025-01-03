@@ -1,0 +1,15 @@
+SELECT
+    pt.NAME AS product_type,  -- Выбираем имя типа продукта и переименовываем его в product_type
+    AVG(r.SUM) AS average_movement  -- Вычисляем среднее значение сумм операций и переименовываем его в average_movement
+FROM
+    RECORDS r  -- Из таблицы RECORDS, с псевдонимом 'r'
+JOIN
+    ACCOUNTS a ON r.ACC_REF = a.ID  -- Объединяем таблицу RECORDS с таблицей ACCOUNTS по ACC_REF и ID
+JOIN
+    PRODUCTS p ON a.PRODUCT_REF = p.ID  -- Объединяем таблицу ACCOUNTS с таблицей PRODUCTS по PRODUCT_REF и ID
+JOIN
+    PRODUCT_TYPE pt ON p.PRODUCT_TYPE_ID = pt.ID  -- Объединяем таблицу PRODUCTS с таблицей PRODUCT_TYPE по PRODUCT_TYPE_ID и ID
+WHERE
+    r.OPER_DATE = (SELECT MIN(OPER_DATE) FROM RECORDS) -- Выбираем только операции за самый первый (произвольный) день
+GROUP BY
+    pt.NAME; -- Группируем результаты по имени типа продукта
