@@ -1,0 +1,37 @@
+-- Функция для вычисления суммы операций по счету
+CREATE OR REPLACE FUNCTION calculate_account_balance(account_id INT)
+RETURNS DECIMAL(10,2) AS $$
+BEGIN
+    RETURN (SELECT COALESCE(SUM(SUM), 0) FROM RECORDS WHERE ACC_REF = account_id);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Процедура для нормализации остатков
+CREATE OR REPLACE PROCEDURE normalize_account_balances()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    calculated_balance DECIMAL(10,2);
+BEGIN
+    -- Проходим по всем счетам
+    FOR rec IN SELECT ID, SALDO FROM ACCOUNTS
+    LOOP
+        -- Вычисляем остаток на счете
+        calculated_balance := calculate_account_balance(rec.ID);
+
+        -- Сравниваем вычисленный остаток с текущим остатком
+        IF calculated_balance <> rec.SALDO THEN
+            -- Обновляем остаток на счете
+            UPDATE ACCOUNTS SET SALDO = calculated_balance WHERE ID = rec.ID;
+            RAISE NOTICE 'Счет с ID %: старый остаток %, новый остаток %', rec.ID, rec.SALDO, calculated_balance;
+        END IF;
+
+    END LOOP;
+    RAISE NOTICE 'Нормализация остатков завершена.';
+END;
+$$;
+
+
+-- Вызов процедуры:
+CALL normalize_account_balances();
