@@ -1,0 +1,51 @@
+-- Добавляем столбец CONTRACT_SUM в таблицу PRODUCTS (если его еще нет)
+ALTER TABLE PRODUCTS
+ADD COLUMN IF NOT EXISTS CONTRACT_SUM DECIMAL(10, 2);
+
+-- Заполнение столбца CONTRACT_SUM
+WITH CreditOperations AS (
+    SELECT
+        p.ID AS product_id,
+        MAX(r.SUM) AS max_debit_sum
+    FROM
+        PRODUCTS p
+    JOIN
+        ACCOUNTS a ON p.ID = a.PRODUCT_REF
+    JOIN
+        RECORDS r ON a.ID = r.ACC_REF
+    WHERE
+        p.PRODUCT_TYPE_ID = (SELECT ID FROM PRODUCT_TYPE WHERE NAME = 'КРЕДИТ') AND r.SUM < 0
+    GROUP BY
+        p.ID
+),
+DepositCardOperations AS (
+    SELECT
+        p.ID AS product_id,
+        MAX(r.SUM) AS max_credit_sum
+    FROM
+        PRODUCTS p
+    JOIN
+        ACCOUNTS a ON p.ID = a.PRODUCT_REF
+    JOIN
+        RECORDS r ON a.ID = r.ACC_REF
+    WHERE
+        p.PRODUCT_TYPE_ID IN (SELECT ID FROM PRODUCT_TYPE WHERE NAME IN ('ДЕПОЗИТ', 'КАРТА')) AND r.SUM > 0
+    GROUP BY
+        p.ID
+),
+CombinedOperations AS (
+  SELECT
+       product_id,
+       max_debit_sum AS contract_sum
+       FROM CreditOperations
+  UNION ALL
+  SELECT
+       product_id,
+       max_credit_sum AS contract_sum
+       FROM DepositCardOperations
+
+)
+UPDATE PRODUCTS
+SET CONTRACT_SUM = sub.contract_sum
+FROM ( SELECT product_id, contract_sum FROM CombinedOperations) AS sub
+WHERE PRODUCTS.ID = sub.product_id;
